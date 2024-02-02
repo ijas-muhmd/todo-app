@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import APIRouter, File, UploadFile, HTTPException, Form
 import os
 
@@ -28,41 +26,6 @@ async def create_todo(todo: Todo):
     _id = collection_name.insert_one(dict(todo))
     return list_serializer(collection_name.find({"_id": _id.inserted_id}))
 
-
-# @router.put("/{id}")
-# async def update_todo(id: str,
-#                       name: str = Form(...),
-#                       description: str = Form(...),
-#                       completed: bool = Form(...),
-#                       image: UploadFile = File(None)):
-#     try:
-#         todo_data = {"name": name, "description": description, "completed": completed}
-#         todo = Todo(**todo_data)
-#
-#         todo_doc = collection_name.find_one({"_id": ObjectId(id)})
-#         if not todo_doc:
-#             raise HTTPException(status_code=404, detail="Todo not found")
-#
-#         if todo.completed and not image:
-#             raise HTTPException(status_code=422, detail="Image is required when marking completed")
-#
-#         image_path = None
-#         if image:
-#             filename = f"todo_{id}_{image.filename}"
-#             image_path = os.path.join("images", filename)
-#             with open(image_path, "wb") as f:
-#                 f.write(await image.read())
-#
-#         if image_path:
-#             todo.image_path = image_path
-#
-#         collection_name.find_one_and_update({"_id": ObjectId(id)}, {"$set": todo.dict()})
-#         updated_todo = collection_name.find_one({"_id": ObjectId(id)})
-#
-#         return individual_serializer(updated_todo)
-#
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/{id}")
 async def update_todo(id: str,
