@@ -7,6 +7,6 @@ __pycache__/
 htmlcov/
 docs/_build/
 dist/
-venv/
+env/
 .vercel
 .venv
