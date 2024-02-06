@@ -107,6 +107,11 @@ async def register(user: User):
     return {"message": "User created successfully"}
 
 
+@router.get("/")
+async def status():
+    return {"status": "ok"}
+
+
 @router.get("/list-all-todo/")
 async def get_todos(current_user: User = Depends(get_current_user)):
     todos = list_serializer(collection_name.find())
