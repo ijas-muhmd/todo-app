@@ -10,3 +10,11 @@ def individual_serializer(todo) -> dict:
 
 def list_serializer(todos) -> list:
     return [individual_serializer(todo) for todo in todos]
+
+
+def user_serializer(user) -> dict:
+    return {
+        "id": str(user["_id"]),
+        "email": user["email"],
+        "hashed_password": user["hashed_password"]
+    }
