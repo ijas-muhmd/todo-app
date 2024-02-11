@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class Todo(BaseModel):
     name: str
     description: str
-    completed: bool
+    completed: Optional[bool] = False
     image_path: Optional[str] = None
 
 
