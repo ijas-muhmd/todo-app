@@ -1,10 +1,14 @@
+from models.PyObjectId import PyObjectId
+
+
 def individual_serializer(todo) -> dict:
     return {
         "id": str(todo["_id"]),
         "name": todo["name"],
         "description": todo["description"],
         "completed": todo["completed"],
-        "image_path": todo["image_path"]
+        "image_path": todo["image_path"],
+        "created_by": str(PyObjectId(todo["created_by"]))  
     }
 
 

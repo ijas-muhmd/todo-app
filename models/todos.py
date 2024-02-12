@@ -1,13 +1,24 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from bson import ObjectId
+
+from models.PyObjectId import DBModelMixin, PyObjectId
 
 
-class Todo(BaseModel):
+class TodoCreate(BaseModel):
     name: str
     description: str
     completed: Optional[bool] = False
     image_path: Optional[str] = None
+
+    
+class Todo(DBModelMixin):
+    name: str
+    description: str
+    completed: Optional[bool] = False
+    image_path: Optional[str] = None
+    created_by: PyObjectId
 
 
 class TodoUpdate(BaseModel):

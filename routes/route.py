@@ -10,7 +10,7 @@ from starlette import status
 from passlib.context import CryptContext
 
 
-from models.todos import Todo, TodoUpdate, User
+from models.todos import Todo, TodoCreate, TodoUpdate, User
 from config.database import collection_name, user_collection
 
 from schema.schemas import list_serializer, individual_serializer, user_serializer
@@ -115,7 +115,7 @@ async def status():
 
 @router.get("/list-all-todo/")
 async def get_todos(current_user: User = Depends(get_current_user)):
-    todos = list_serializer(collection_name.find())
+    todos = list_serializer(collection_name.find({"created_by": ObjectId(current_user["_id"])}))
     return todos
 
 
@@ -128,8 +128,10 @@ async def get_todo(id: str, current_user: User = Depends(get_current_user)):
 
 
 @router.post("/create-todo/")
-async def create_todo(todo: Todo, current_user: User = Depends(get_current_user)):
-    _id = collection_name.insert_one(dict(todo))
+async def create_todo(todo: TodoCreate, current_user: User = Depends(get_current_user)):
+    todo_dict = dict(todo)
+    todo_dict["created_by"] = ObjectId(current_user["_id"])
+    _id = collection_name.insert_one(todo_dict)
     return list_serializer(collection_name.find({"_id": _id.inserted_id}))
 
 
