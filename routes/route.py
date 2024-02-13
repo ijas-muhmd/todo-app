@@ -1,4 +1,5 @@
 
+import asyncio
 from datetime import datetime, timezone, timedelta
 from typing import Annotated
 
@@ -17,6 +18,10 @@ from schema.schemas import list_serializer, individual_serializer, user_serializ
 from bson import ObjectId
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from dotenv import load_dotenv
+import boto3
+from botocore.exceptions import ClientError
+from werkzeug.utils import secure_filename
+from io import BytesIO
 
 load_dotenv()
 
@@ -101,7 +106,7 @@ async def register(user: User):
     user.hashed_password = hashed_password
 
     try:
-        user_collection.insert_one(user.dict())
+        user_collection.insert_one(user.model_dump())
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to register user: {e}")
 
@@ -135,6 +140,13 @@ async def create_todo(todo: TodoCreate, current_user: User = Depends(get_current
     return list_serializer(collection_name.find({"_id": _id.inserted_id}))
 
 
+KB = 1024
+MB = 1024 * KB
+
+s3 = boto3.client('s3')
+bucket_name = 'todo-images'
+
+
 @router.post("/upload-image/{id}")
 async def upload_image(id: str, image: UploadFile = File(...), current_user: User = Depends(get_current_user)):
     try:
@@ -146,16 +158,36 @@ async def upload_image(id: str, image: UploadFile = File(...), current_user: Use
         if image.content_type not in allowed_mime_types:
             raise HTTPException(status_code=400, detail="Unsupported file type.")
 
+        filename = secure_filename(image.filename)
         filename = f"todo_{id}_{image.filename}"
-        image_path = os.path.join("images", filename)
-        with open(image_path, "wb") as f:
-            f.write(await image.read())
+        image_data = await image.read()
+        image_fileobj = BytesIO(image_data)
 
-        collection_name.find_one_and_update({"_id": ObjectId(id)}, {"$set": {"image_path": image_path, "completed": True}})
+        size = len(image_data)
+        if size > 2 * MB:
+            raise HTTPException(status_code=400, detail="File size must be less than 2MB")
+
+        # Upload the image to the cloud storage service
+        # s3.upload_fileobj(image_data, bucket_name, filename)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, s3.upload_fileobj, image_fileobj, bucket_name, filename)
+
+        image_url = f"https://{bucket_name}.s3.amazonaws.com/{filename}"
+
+        update_result = collection_name.find_one_and_update(
+            {"_id": ObjectId(id)},
+            {"$set": {"image_path": image_url, "completed": True}}
+        )
+
+        if not update_result:
+            # Delete the uploaded image from S3 if the database update failed
+            s3.delete_object(Bucket=bucket_name, Key=filename)
+            raise HTTPException(status_code=500, detail="Database update failed.")
+        
         updated_todo = collection_name.find_one({"_id": ObjectId(id)})
 
         return individual_serializer(updated_todo)
-    except Exception as e:
+    except ClientError as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -166,11 +198,11 @@ async def update_todo(id: str, todo_update: TodoUpdate, current_user: User = Dep
     if not todo_doc:
         raise HTTPException(status_code=404, detail="Todo not found")
 
-    update_data = todo_update.dict(exclude_unset=True)
+    update_data = todo_update.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=400, detail="No update data provided")
 
-    collection_name.find_one_and_update({"_id": ObjectId(id)}, {"$set": todo_update.dict()})
+    collection_name.find_one_and_update({"_id": ObjectId(id)}, {"$set": todo_update.model_dump()})
     updated_todo = collection_name.find_one({"_id": ObjectId(id)})
 
     return individual_serializer(updated_todo)
